@@ -40,6 +40,11 @@ class BlockChain(object):
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
         }
 
+        self.current_transactions = []
+
+        self.chain.append(block)
+        return block
+
     def new_transaction(self, sender: str, recipient: str, amount: int) -> int:
         '''new_transaction
         :param sender: sender's address
