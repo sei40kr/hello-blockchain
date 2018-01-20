@@ -8,6 +8,11 @@ from time import time
 class BlockChain(object):
     @staticmethod
     def hash(block):
+        '''hash
+        :param block: <dict> block
+        :return <str>
+        '''
+
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
@@ -23,6 +28,11 @@ class BlockChain(object):
         return self.chain[-1]
 
     def new_block(self, proof, previous_hash=None):
+        '''new_block
+        :param proof:
+        :param previous_hash:
+        '''
+
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
@@ -32,6 +42,13 @@ class BlockChain(object):
         }
 
     def new_transaction(self, sender, recipient, amount):
+        '''new_transaction
+        :param sender: <str> sender's address
+        :param recipient: <str> recipient's address
+        :param amount: <int> amount
+        :return <int> block address where this transaction will be included
+        '''
+
         self.current_transactions.append({
             'sender': sender,
             'recipient': recipient,
