@@ -7,10 +7,9 @@ from time import time
 
 class BlockChain(object):
     @staticmethod
-    def hash(block):
+    def hash(block: dict) -> str:
         '''hash
-        :param block: <dict> block
-        :return <str>
+        :param block: block
         '''
 
         block_string = json.dumps(block, sort_keys=True).encode()
@@ -24,13 +23,13 @@ class BlockChain(object):
         self.new_block(previous_hash=1, proof=100)
 
     @property
-    def last_block(self):
+    def last_block(self) -> dict:
         return self.chain[-1]
 
-    def new_block(self, proof, previous_hash=None):
+    def new_block(self, proof: int, previous_hash: str = None) -> dict:
         '''new_block
-        :param proof:
-        :param previous_hash:
+        :param proof: proof
+        :param previous_hash: hash of previous block
         '''
 
         block = {
@@ -41,12 +40,12 @@ class BlockChain(object):
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
         }
 
-    def new_transaction(self, sender, recipient, amount):
+    def new_transaction(self, sender: str, recipient: str, amount: int) -> int:
         '''new_transaction
-        :param sender: <str> sender's address
-        :param recipient: <str> recipient's address
-        :param amount: <int> amount
-        :return <int> block address where this transaction will be included
+        :param sender: sender's address
+        :param recipient: recipient's address
+        :param amount: amount
+        :return block address where this transaction will be included
         '''
 
         self.current_transactions.append({
