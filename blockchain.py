@@ -15,6 +15,18 @@ class BlockChain(object):
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
+    @staticmethod
+    def valid_proof(last_proof: int, proof: int) -> bool:
+        """valid_proof
+        :param last_proof:
+        :param proof:
+        """
+
+        guess = f'{last_proof}{proof}'.encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+
+        return guess_hash[:4] == '0000'
+
     def __init__(self):
         self.chain = []
         self.current_transactions = []
@@ -60,3 +72,14 @@ class BlockChain(object):
         })
 
         return self.last_block['index'] + 1
+
+    def proof_of_work(self, last_proof: int) -> int:
+        """proof_of_work
+        :param last_proof: previous proof
+        """
+
+        proof = 0
+        while not self.valid_proof(last_proof, proof):
+            proof += 1
+
+        return proof
