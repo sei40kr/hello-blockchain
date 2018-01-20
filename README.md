@@ -2,6 +2,14 @@
 
 Where I learn blockchain.
 
+## Get Started
+
+Install dependencies by running below:
+
+```sh
+pip install -r requirements.txt
+```
+
 ## What is "Block"
 
 Each block has index, timestamp, transactions, proof and link to an older block.
