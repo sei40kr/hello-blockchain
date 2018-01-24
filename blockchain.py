@@ -9,24 +9,19 @@ from flask import Flask, jsonify, request
 
 
 class Blockchain(object):
-    """Create a instance of blockchain."""
-
     @staticmethod
     def hash(block: dict) -> str:
-        """Create a hash from given block."""
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
     @staticmethod
     def valid_proof(last_proof: int, proof: int) -> bool:
-        """Validate given proof is correct or not."""
         guess = f'{last_proof}{proof}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
 
         return guess_hash[:4] == '0000'
 
     def __init__(self):
-        """Initialize a instance of blockchain."""
         self.chain = []
         self.current_transactions = []
 
@@ -35,11 +30,9 @@ class Blockchain(object):
 
     @property
     def last_block(self) -> dict:
-        """Return the last(newest) block in chain."""
         return self.chain[-1]
 
     def new_block(self, proof: int, previous_hash: str = None) -> dict:
-        """Create a new block and append to chain."""
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
@@ -54,7 +47,6 @@ class Blockchain(object):
         return block
 
     def new_transaction(self, sender: str, recipient: str, amount: int) -> int:
-        """Create a new transaction and append to the last(newest) block."""
         self.current_transactions.append({
             'sender': sender,
             'recipient': recipient,
@@ -64,7 +56,6 @@ class Blockchain(object):
         return self.last_block['index'] + 1
 
     def proof_of_work(self, last_proof: int) -> int:
-        """Find a valid proof from the last one."""
         proof = 0
         while not self.valid_proof(last_proof, proof):
             proof += 1
@@ -80,7 +71,6 @@ app = Flask(__name__)
 
 @app.route('/transaction/new', methods=['POST'])
 def new_transaction():
-    """Create a new transaction."""
     payload = request.get_json()
 
     keys = ['sender', 'recipient', 'amount']
@@ -98,7 +88,6 @@ def new_transaction():
 
 @app.route('/mine', methods=['GET'])
 def mine():
-    """Create a valid block and receive fees."""
     proof = instance.proof_of_work(instance.last_block['proof'])
     block = instance.new_block(proof)
 
@@ -120,7 +109,6 @@ def mine():
 
 @app.route('/chain', methods=['GET'])
 def show_chain():
-    """Show current chain(and all blocks and transactions) in blockchain."""
     return jsonify({
         'chain': instance.chain,
         'length': len(instance.chain),
