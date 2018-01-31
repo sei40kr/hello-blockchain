@@ -4,6 +4,7 @@ import hashlib
 import json
 from time import time
 from uuid import uuid4
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request
 
@@ -25,12 +26,23 @@ class Blockchain(object):
         self.chain = []
         self.current_transactions = []
 
+        # Create node list as a collection set, to avoid duplicated nodes
+        self.nodes = set()
+
         # Create a genesis block
         self.new_block(previous_hash=1, proof=100)
 
     @property
     def last_block(self) -> dict:
         return self.chain[-1]
+
+    def register_node(self, url):
+        """
+        Add a new node to blockchain network.
+        :param url: <str> Node address
+        """
+        urlobject = urlparse(url)
+        self.nodes.add(urlobject.netloc)
 
     def new_block(self, proof: int, previous_hash: str = None) -> dict:
         block = {
@@ -61,6 +73,30 @@ class Blockchain(object):
             proof += 1
 
         return proof
+
+    def valid_chain(self, chain):
+        """
+        Check if specified chain is valid to the blockchain.
+
+        :param chain: <list> A chain list
+        :return <bool> Return true if specified one is valid
+        """
+        last_block = chain[0]
+
+        for i, block in enumerate(chain):
+            print(f'{last_block}')
+            print(f'{block}')
+            print(f'\n------------\n')
+
+            # Check if the block in specified chain has valid hash
+            if block['previous_hash'] != self.hash(last_block):
+                return False
+
+            # Check if the block in specified chain has valid proof
+            if not self.valid_proof(last_block['proof'], block['proof']):
+                return False
+
+        return True
 
 
 node_address = str(uuid4()).replace('-', '')
