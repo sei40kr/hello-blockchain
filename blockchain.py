@@ -3,9 +3,10 @@
 import hashlib
 import json
 from time import time
-from uuid import uuid4
 from urllib.parse import urlparse
+from uuid import uuid4
 
+import requests
 from flask import Flask, jsonify, request
 
 
@@ -100,6 +101,33 @@ class Blockchain(object):
 
         return True
 
+    def resolve_conflicts(self):
+        nodes = self.nodes
+
+        # Find the longest chain
+        max_len = len(self.chain)
+        new_chain = None
+
+        for node in nodes:
+            response = requests.get('http://{node}/chain')
+
+            if response.status_code != 200:
+                continue
+
+            body = response.json()
+            length = body['length']
+            chain = body['chain']
+
+            if max_len < length and self.valid_chain(chain):
+                max_len = length
+                new_chain = chain
+
+        if new_chain:
+            self.chain = new_chain
+            return True
+
+        return False
+
 
 node_address = str(uuid4()).replace('-', '')
 instance = Blockchain()
@@ -155,3 +183,34 @@ def show_chain():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+
+@app.route('/nodes/register', methods=['POST'])
+def register_node():
+    payload = request.get_json()
+    nodes = payload.get('nodes')
+
+    if nodes is None:
+        return "Please supply a valid list of nodes", 400
+
+    for node in nodes:
+        instance.register_node(node)
+
+    return jsonify({
+        'message': 'New nodes have been added',
+        'total_nodes': list(instance.nodes),
+    }), 201
+
+
+@app.route('/nodes/resolve', methods=['GET'])
+def consensus():
+    replaced = instance.resolve_conflicts()
+
+    if replaced:
+        response = {'message': 'Our chain was replaced',
+                    'new_chain': instance.chain}
+    else:
+        response = {'message': 'Our chain was authoritative',
+                    'chain': instance.chain}
+
+    return jsonify(response), 200
