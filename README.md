@@ -2,20 +2,10 @@
 
 Where I learn blockchain.
 
-<!-- vim-markdown-toc GFM -->
-
-- [Get Started](#get-started)
-- [References](#references)
-- [TODO](#todo)
-
-<!-- vim-markdown-toc -->
-
-## Get Started
-
-Install dependencies by running below:
+## How to Run
 
 ```sh
-pip install -r requirements.txt
+cargo run
 ```
 
 ## References
