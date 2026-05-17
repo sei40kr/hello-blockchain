@@ -4,13 +4,42 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 
 #[derive(Clone)]
 struct Transaction {
-    sender: String,
-    recipient: String,
+    sender: VerifyingKey,
+    recipient: VerifyingKey,
     amount: u64,
+    signature: Signature,
+}
+
+impl Transaction {
+    fn new(sender_key: &SigningKey, recipient: VerifyingKey, amount: u64) -> Self {
+        let sender = sender_key.verifying_key();
+        let signature = sender_key.sign(&Self::signing_payload(&sender, &recipient, amount));
+        Transaction {
+            sender,
+            recipient,
+            amount,
+            signature,
+        }
+    }
+
+    fn signing_payload(sender: &VerifyingKey, recipient: &VerifyingKey, amount: u64) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(32 + 32 + 8);
+        bytes.extend_from_slice(sender.as_bytes());
+        bytes.extend_from_slice(recipient.as_bytes());
+        bytes.extend_from_slice(&amount.to_le_bytes());
+        bytes
+    }
+
+    fn is_valid(&self) -> bool {
+        let payload = Self::signing_payload(&self.sender, &self.recipient, self.amount);
+        self.sender.verify(&payload, &self.signature).is_ok()
+    }
 }
 
 #[derive(Clone)]
@@ -44,9 +73,10 @@ impl Block {
         hasher.update(self.index.to_string());
         hasher.update(self.timestamp.to_string());
         for transaction in &self.transactions {
-            hasher.update(&transaction.sender.clone());
-            hasher.update(&transaction.recipient.clone());
-            hasher.update(&transaction.amount.to_string());
+            hasher.update(transaction.sender.as_bytes());
+            hasher.update(transaction.recipient.as_bytes());
+            hasher.update(transaction.amount.to_le_bytes());
+            hasher.update(transaction.signature.to_bytes());
         }
         hasher.update(self.previous_hash.clone());
         hasher.update(self.nonce.to_string());
@@ -82,7 +112,10 @@ impl Blockchain {
         block
     }
 
-    fn add_block(&mut self, transactions: Vec<Transaction>) {
+    fn add_block(&mut self, transactions: Vec<Transaction>) -> Result<(), &'static str> {
+        if !transactions.iter().all(Transaction::is_valid) {
+            return Err("block contains a transaction with an invalid signature");
+        }
         let previous_block = self.chain.last().unwrap();
         let mut new_block = Block::new(
             previous_block.index + 1,
@@ -91,16 +124,17 @@ impl Blockchain {
         );
         new_block.mine(self.difficulty);
         self.chain.push(new_block);
+        Ok(())
     }
 
     fn is_valid(&self) -> bool {
-        self.chain
-            .iter()
-            .all(|block| block.hash == block.calculate_hash())
-            && self
-                .chain
-                .windows(2)
-                .all(|pair| pair[0].hash == pair[1].previous_hash)
+        self.chain.iter().all(|block| {
+            block.hash == block.calculate_hash()
+                && block.transactions.iter().all(Transaction::is_valid)
+        }) && self
+            .chain
+            .windows(2)
+            .all(|pair| pair[0].hash == pair[1].previous_hash)
     }
 }
 
@@ -117,8 +151,8 @@ impl Node {
         }
     }
 
-    fn add_block(&mut self, transactions: Vec<Transaction>) {
-        self.blockchain.add_block(transactions);
+    fn add_block(&mut self, transactions: Vec<Transaction>) -> Result<(), &'static str> {
+        self.blockchain.add_block(transactions)
     }
 
     fn is_valid(&self) -> bool {
@@ -156,23 +190,33 @@ fn main() {
     node3.borrow_mut().add_other_node(Rc::clone(&node1));
     node3.borrow_mut().add_other_node(Rc::clone(&node2));
 
-    let transaction1 = Transaction {
-        sender: String::from("Alice"),
-        recipient: String::from("Bob"),
-        amount: 100,
-    };
+    let mut csprng = OsRng;
+    let alice = SigningKey::generate(&mut csprng);
+    let bob = SigningKey::generate(&mut csprng);
+    let charlie = SigningKey::generate(&mut csprng);
 
-    let transaction2 = Transaction {
-        sender: String::from("Bob"),
-        recipient: String::from("Charlie"),
-        amount: 50,
-    };
+    let transaction1 = Transaction::new(&alice, bob.verifying_key(), 100);
+    let transaction2 = Transaction::new(&bob, charlie.verifying_key(), 50);
 
-    node1.borrow_mut().add_block(vec![transaction1.clone()]);
-    node2.borrow_mut().add_block(vec![transaction1.clone()]);
+    node1
+        .borrow_mut()
+        .add_block(vec![transaction1.clone()])
+        .unwrap();
+    node2
+        .borrow_mut()
+        .add_block(vec![transaction1.clone()])
+        .unwrap();
     node3
         .borrow_mut()
-        .add_block(vec![transaction1.clone(), transaction2.clone()]);
+        .add_block(vec![transaction1.clone(), transaction2.clone()])
+        .unwrap();
+
+    let mut tampered = transaction1.clone();
+    tampered.amount = 999_999;
+    assert!(
+        node1.borrow_mut().add_block(vec![tampered]).is_err(),
+        "tampered transaction must be rejected"
+    );
 
     node1.borrow_mut().consensus();
     node2.borrow_mut().consensus();
