@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bs58 = { version = "0.5", features = ["check"] }
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 rand = "0.8"
+ripemd = "0.1"
 sha2 = "0.10.8"

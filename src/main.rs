@@ -6,7 +6,38 @@ use std::{
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
+use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
+
+struct Wallet {
+    signing_key: SigningKey,
+}
+
+impl Wallet {
+    const ADDRESS_VERSION: u8 = 0x00;
+
+    fn new() -> Self {
+        Wallet {
+            signing_key: SigningKey::generate(&mut OsRng),
+        }
+    }
+
+    fn verifying_key(&self) -> VerifyingKey {
+        self.signing_key.verifying_key()
+    }
+
+    fn address(&self) -> String {
+        let sha = Sha256::digest(self.verifying_key().as_bytes());
+        let ripemd = Ripemd160::digest(sha);
+        bs58::encode(ripemd)
+            .with_check_version(Self::ADDRESS_VERSION)
+            .into_string()
+    }
+
+    fn sign(&self, recipient: VerifyingKey, amount: u64) -> Transaction {
+        Transaction::new(&self.signing_key, recipient, amount)
+    }
+}
 
 #[derive(Clone)]
 struct Transaction {
@@ -190,13 +221,16 @@ fn main() {
     node3.borrow_mut().add_other_node(Rc::clone(&node1));
     node3.borrow_mut().add_other_node(Rc::clone(&node2));
 
-    let mut csprng = OsRng;
-    let alice = SigningKey::generate(&mut csprng);
-    let bob = SigningKey::generate(&mut csprng);
-    let charlie = SigningKey::generate(&mut csprng);
+    let alice = Wallet::new();
+    let bob = Wallet::new();
+    let charlie = Wallet::new();
 
-    let transaction1 = Transaction::new(&alice, bob.verifying_key(), 100);
-    let transaction2 = Transaction::new(&bob, charlie.verifying_key(), 50);
+    println!("Alice's address:   {}", alice.address());
+    println!("Bob's address:     {}", bob.address());
+    println!("Charlie's address: {}", charlie.address());
+
+    let transaction1 = alice.sign(bob.verifying_key(), 100);
+    let transaction2 = bob.sign(charlie.verifying_key(), 50);
 
     node1
         .borrow_mut()
