@@ -1,4 +1,7 @@
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use sha2::{Digest, Sha256};
+
+use crate::merkle::Hash;
 
 #[derive(Clone)]
 pub struct Transaction {
@@ -31,5 +34,14 @@ impl Transaction {
     pub fn is_valid(&self) -> bool {
         let payload = Self::signing_payload(&self.sender, &self.recipient, self.amount);
         self.sender.verify(&payload, &self.signature).is_ok()
+    }
+
+    pub fn hash(&self) -> Hash {
+        let mut hasher = Sha256::new();
+        hasher.update(self.sender.as_bytes());
+        hasher.update(self.recipient.as_bytes());
+        hasher.update(self.amount.to_le_bytes());
+        hasher.update(self.signature.to_bytes());
+        hasher.finalize().into()
     }
 }

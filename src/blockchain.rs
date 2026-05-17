@@ -1,4 +1,4 @@
-use crate::{block::Block, transaction::Transaction};
+use crate::{block::Block, merkle::compute_merkle_root, transaction::Transaction};
 
 pub struct Blockchain {
     pub chain: Vec<Block>,
@@ -37,6 +37,7 @@ impl Blockchain {
     pub fn is_valid(&self) -> bool {
         self.chain.iter().all(|block| {
             block.hash == block.calculate_hash()
+                && block.merkle_root == compute_merkle_root(&block.transactions)
                 && block.transactions.iter().all(Transaction::is_valid)
         }) && self
             .chain
